@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pokemon } from '@/types/pokemon';
-import { fetchPokemonList, fetchPokemonByName } from '@/app/actions';
+import { getFilteredPokemon } from '@/app/actions';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -23,47 +23,16 @@ export function usePokemonSearch(selectedType: string, searchTerm: string) {
       }
       setError(null);
 
-      // Get Pokemon list for current page
-      const listResponse = await fetchPokemonList(ITEMS_PER_PAGE, pageToLoad * ITEMS_PER_PAGE);
-      
-      if (!listResponse?.results) {
-        throw new Error('Invalid Pokemon list response');
-      }
+      const result = await getFilteredPokemon(
+        searchTerm,
+        selectedType,
+        pageToLoad,
+        ITEMS_PER_PAGE
+      );
 
-      // Update hasMore based on total count
-      const total = listResponse.count || 0;
-      setTotalCount(total);
-      setHasMore((pageToLoad + 1) * ITEMS_PER_PAGE < total);
-
-      // Fetch detailed data for each Pokemon in smaller chunks
-      const newPokemonDetails: Pokemon[] = [];
-      const chunkSize = 5;
-      
-      for (let i = 0; i < listResponse.results.length; i += chunkSize) {
-        const chunk = listResponse.results.slice(i, i + chunkSize);
-        const chunkDetails = await Promise.all(
-          chunk.map(p => fetchPokemonByName(p.name))
-        );
-        newPokemonDetails.push(...chunkDetails);
-      }
-
-      // Filter based on type and search term
-      let filtered = newPokemonDetails.filter(Boolean);
-
-      if (selectedType) {
-        filtered = filtered.filter((p) =>
-          p.types.some((t) => t.type.name === selectedType)
-        );
-      }
-
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        filtered = filtered.filter((p) =>
-          p.name.toLowerCase().includes(term)
-        );
-      }
-
-      setPokemon(prev => pageToLoad === 0 ? filtered : [...prev, ...filtered]);
+      setPokemon(prev => pageToLoad === 0 ? result.pokemon : [...prev, ...result.pokemon]);
+      setTotalCount(result.totalCount);
+      setHasMore(result.hasMore);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch Pokemon');
       console.error('Error fetching Pokemon:', err);
