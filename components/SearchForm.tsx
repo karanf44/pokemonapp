@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { fetchPokemonTypes } from '@/app/actions';
 
 interface SearchFormProps {
-  onSearch: (searchTerm: string) => void;
+  onSearch: (term: string) => void;
   onTypeSelect: (type: string) => void;
+  disabled?: boolean;
 }
 
-export default function SearchForm({ onSearch, onTypeSelect }: SearchFormProps) {
+export default function SearchForm({ onSearch, onTypeSelect, disabled = false }: SearchFormProps) {
   const [types, setTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,12 +37,13 @@ export default function SearchForm({ onSearch, onTypeSelect }: SearchFormProps) 
             placeholder="Search Pokemon..."
             onChange={(e) => onSearch(e.target.value)}
             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={disabled}
           />
         </div>
         <div className="w-full md:w-64">
           <select
             onChange={(e) => onTypeSelect(e.target.value)}
-            disabled={loading}
+            disabled={loading || disabled}
             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Types</option>

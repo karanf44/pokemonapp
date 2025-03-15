@@ -3,7 +3,7 @@
 import { Pokemon, PokemonListResponse } from '@/types/pokemon';
 import { cache } from 'react';
 
-const API_BASE_URL = 'https://pokeapi.co/api/v2';
+const BASE_URL = 'https://pokeapi.co/api/v2';
 
 // Helper function to handle fetch errors with timeout and retry
 async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
@@ -43,7 +43,7 @@ async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Pr
 // Cache the Pokemon list at the server level
 export const fetchPokemonList = cache(async (limit: number = 20, offset: number = 0): Promise<PokemonListResponse> => {
   return fetchWithErrorHandling<PokemonListResponse>(
-    `${API_BASE_URL}/pokemon?limit=${limit}&offset=${offset}`,
+    `${BASE_URL}/pokemon?limit=${limit}&offset=${offset}`,
     {
       next: { revalidate: 3600 } // Cache for 1 hour
     }
@@ -53,7 +53,7 @@ export const fetchPokemonList = cache(async (limit: number = 20, offset: number 
 // Cache individual Pokemon data
 export const fetchPokemonByName = cache(async (name: string): Promise<Pokemon> => {
   return fetchWithErrorHandling<Pokemon>(
-    `${API_BASE_URL}/pokemon/${name.toLowerCase()}`,
+    `${BASE_URL}/pokemon/${name.toLowerCase()}`,
     {
       next: { revalidate: 3600 } // Cache for 1 hour
     }
@@ -63,11 +63,60 @@ export const fetchPokemonByName = cache(async (name: string): Promise<Pokemon> =
 // Cache Pokemon types
 export const fetchPokemonTypes = cache(async (): Promise<string[]> => {
   const data = await fetchWithErrorHandling<{ results: { name: string }[] }>(
-    `${API_BASE_URL}/type`,
+    `${BASE_URL}/type`,
     {
       next: { revalidate: 86400 } // Cache for 24 hours since types rarely change
     }
   );
   
   return data.results.map(type => type.name);
-}); 
+});
+
+interface TypePokemon {
+  pokemon: {
+    name: string;
+  };
+}
+
+export async function searchPokemon(searchTerm: string = '', type: string = '', page: number = 0, limit: number = 20): Promise<PokemonListResponse> {
+  try {
+    // Fetch all Pokemon for searching
+    const allPokemon = await fetchPokemonList(limit, page * limit);
+    let filteredResults = allPokemon.results;
+
+    // If there's a search term, filter by name
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredResults = filteredResults.filter((p: { name: string }) => p.name.toLowerCase().includes(term));
+    }
+
+    // If type is specified, fetch and filter by type
+    if (type) {
+      const typeData = await fetchPokemonTypes();
+      const pokemonOfType = new Set(typeData);
+      filteredResults = filteredResults.filter((p: { name: string }) => pokemonOfType.has(p.name));
+    }
+
+    const offset = page * limit;
+    
+    return {
+      count: filteredResults.length,
+      next: offset + limit < filteredResults.length ? `${BASE_URL}/pokemon?offset=${offset + limit}&limit=${limit}` : null,
+      previous: offset > 0 ? `${BASE_URL}/pokemon?offset=${Math.max(0, offset - limit)}&limit=${limit}` : null,
+      results: filteredResults.slice(offset, offset + limit)
+    };
+  } catch (error) {
+    console.error('Error searching Pokemon:', error);
+    throw new Error('Failed to search Pokemon');
+  }
+}
+
+// export async function fetchPokemonTypes(): Promise<string[]> {
+//   try {
+//     const data = await fetchPokemonTypes();
+//     return data;
+//   } catch (error) {
+//     console.error('Error fetching Pokemon types:', error);
+//     return [];
+//   }
+// } 

@@ -6,16 +6,23 @@ const ITEMS_PER_PAGE = 20;
 
 export function usePokemonSearch(selectedType: string, searchTerm: string) {
   const [pokemon, setPokemon] = useState<Pokemon[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchPokemonData = useCallback(async (pageToLoad: number) => {
     try {
-      setLoading(true);
+      if (pageToLoad === 0) {
+        setInitialLoading(true);
+        setPokemon([]); // Reset pokemon list when starting a new search
+      } else {
+        setLoading(true);
+      }
       setError(null);
-      
+
       // Get Pokemon list for current page
       const listResponse = await fetchPokemonList(ITEMS_PER_PAGE, pageToLoad * ITEMS_PER_PAGE);
       
@@ -23,7 +30,10 @@ export function usePokemonSearch(selectedType: string, searchTerm: string) {
         throw new Error('Invalid Pokemon list response');
       }
 
-      setHasMore(!!listResponse.next);
+      // Update hasMore based on total count
+      const total = listResponse.count || 0;
+      setTotalCount(total);
+      setHasMore((pageToLoad + 1) * ITEMS_PER_PAGE < total);
 
       // Fetch detailed data for each Pokemon in smaller chunks
       const newPokemonDetails: Pokemon[] = [];
@@ -56,9 +66,10 @@ export function usePokemonSearch(selectedType: string, searchTerm: string) {
       setPokemon(prev => pageToLoad === 0 ? filtered : [...prev, ...filtered]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch Pokemon');
-      console.error(err);
+      console.error('Error fetching Pokemon:', err);
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }, [selectedType, searchTerm]);
 
@@ -69,12 +80,20 @@ export function usePokemonSearch(selectedType: string, searchTerm: string) {
   }, [selectedType, searchTerm, fetchPokemonData]);
 
   const loadMore = useCallback(() => {
-    if (!loading && hasMore) {
+    if (!loading && !initialLoading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
       fetchPokemonData(nextPage);
     }
-  }, [loading, hasMore, page, fetchPokemonData]);
+  }, [loading, initialLoading, hasMore, page, fetchPokemonData]);
 
-  return { pokemon, loading, error, hasMore, loadMore };
+  return {
+    pokemon,
+    loading,
+    initialLoading,
+    error,
+    hasMore,
+    loadMore,
+    totalCount
+  };
 } 

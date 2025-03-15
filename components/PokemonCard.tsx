@@ -31,13 +31,20 @@ export default function PokemonCard({ pokemon }: PokemonCardProps) {
   console.log(pokemon, 'detail');
   return (
     <Link href={`/pokemon/${pokemon.id}`}>
-      <div className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow duration-200 cursor-pointer">
+      <div className="group relative bg-white rounded-lg shadow-lg p-4 transition-all duration-300 hover:shadow-2xl hover:scale-105 cursor-pointer">
+        {/* Tooltip */}
+        <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-300 -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-3 py-1 rounded text-sm whitespace-nowrap">
+          Show details
+          {/* Tooltip arrow */}
+          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45" />
+        </div>
+
         <div className="relative w-full h-48">
           <Image
             src={pokemon.sprites.other['official-artwork'].front_default}
             alt={pokemon.name}
             fill
-            className="object-contain"
+            className="object-contain transform group-hover:scale-110 transition-transform duration-300"
             priority
           />
         </div>
